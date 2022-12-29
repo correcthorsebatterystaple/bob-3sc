@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script
+      src="https://accounts.google.com/gsi/client"
+      onload="initClient()"
+      async
+      defer
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"
+      integrity="sha512-WFN04846sdKMIP5LKNphMaWzU7YpMyCU245etK3g/2ARYbPK9Ub18eG+ljU96qKRCWh+quCY7yefSmlkQw1ANQ=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+  </head>
+  <body>
+    <script>
+      const ACCESS_TOKEN_KEY = "bob.g_access_token";
+
+      let client;
+      let access_token;
+
+      function initClient() {
+        client = google.accounts.oauth2.initTokenClient({
+          client_id:
+            "106113587711-4v9qoovue479a15nva7masil8n92v4uv.apps.googleusercontent.com",
+          scope: "https://www.googleapis.com/auth/spreadsheets.readonly",
+          callback: (tokenResponse) => {
+            access_token = tokenResponse.access_token;
+          },
+        });
+      }
+      function getToken() {
+        client.requestAccessToken();
+      }
+      function revokeToken() {
+        google.accounts.oauth2.revoke(access_token, () => {
+          console.log("access token revoked");
+          access_token = null;
+        });
+      }
+
+      const spreadsheetId = "1ATMcPmXNQlVXdOQv95kJHbQn1dJJMszF7Y71sLpqGgA";
+      const baseSheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
+      const month = new Date()
+        .toLocaleString("default", { month: "short" })
+        .toUpperCase();
+
+      async function renderSchedule() {
+        const amTextDisplay = document.getElementById("am-text");
+        const amColorDisplay = document.getElementById("am-color");
+
+        const pmTextDisplay = document.getElementById("pm-text");
+        const pmColorDisplay = document.getElementById("pm-color");
+
+        const { am, pm } = await getScheduledEntry();
+
+        amTextDisplay.innerText = am.key;
+        amColorDisplay.style.backgroundColor = `rgb(${
+          am.value.color.red * 255
+        }, ${am.value.color.green * 255}, ${am.value.color.blue * 255})`;
+
+        pmTextDisplay.innerText = pm.key;
+        pmColorDisplay.style.backgroundColor = `rgb(${
+          pm.value.color.red * 255
+        }, ${pm.value.color.green * 255}, ${pm.value.color.blue * 255})`;
+      }
+
+      async function getScheduledEntry() {
+        if (!access_token) {
+          alert("no access token");
+          return;
+        }
+
+        const [rowNumber, columnNumber, keys] = await Promise.all([
+          getRowNumber("salim"),
+          getColumnNumber(),
+          getKeys(),
+        ]);
+
+        console.log(keys);
+
+        const [cellAM, cellPM] = await getCell(rowNumber, columnNumber);
+        const isHoliday = (cell) => Object.keys(cell.color).length === 0;
+
+        let scheduleAM = keys.find(
+          (k) =>
+            k.value.value === cellAM.value &&
+            _.isEqual(k.value.color, cellAM.color)
+        );
+        let schedulePM = keys.find(
+          (k) =>
+            k.value.value === cellPM.value &&
+            _.isEqual(k.value.color, cellPM.color)
+        );
+
+        if (isHoliday(cellAM)) {
+          scheduleAM = {
+            key: "Holiday",
+            value: { value: cellAM.value, color: {} },
+          };
+        }
+        if (isHoliday(cellPM)) {
+          schedulePM = {
+            key: "Holiday",
+            value: { value: cellPM.value, color: {} },
+          };
+        }
+
+        return {
+          am: scheduleAM,
+          pm: schedulePM,
+        };
+      }
+
+      /**
+       * @param {string} name
+       * @returns {Promise<{key: string; value: {value: string, color: any}}[]>}
+       */
+      async function getKeys() {
+        const sheet = month;
+        const ranges = [`KEY!A2:B31`, "KEY!A34:B48", "KEY!D2:E9"];
+
+        const keysData = await axios
+          .get(
+            `${baseSheetsUrl}?ranges=${ranges[0]}&ranges=${ranges[1]}&ranges=${ranges[2]}&fields=sheets.data.rowData.values(effectiveFormat,effectiveValue)`,
+            {
+              headers: { Authorization: `Bearer ${access_token}` },
+            }
+          )
+          .then((res) => res.data.sheets[0].data);
+
+        const keys = keysData
+          .map((d) =>
+            d.rowData.map((rd) => ({
+              key: rd.values[0].effectiveValue.stringValue,
+              value: {
+                value: rd.values[1].effectiveValue?.stringValue ?? "",
+                color: rd.values[1].effectiveFormat?.backgroundColor,
+              },
+            }))
+          )
+          .flat();
+
+        return keys;
+      }
+
+      /**
+       * @param {number} row
+       * @param {number} col
+       * @returns {Promise<{value: string, color: {red: number, green: number, blue: number}}[]>}
+       */
+      async function getCell(row, col) {
+        const colLetterAM = columnNumberToIndex(col);
+        const colLetterPM = columnNumberToIndex(col + 1);
+
+        // const range = `${month}!${colLetterAM}${row}:${colLetterPM}${row}`;
+        const range = `${month}!AG${row}:AH${row}`;
+        const cells = await axios
+          .get(
+            `${baseSheetsUrl}?ranges=${range}&fields=sheets.data.rowData.values(effectiveFormat,effectiveValue)`,
+            {
+              headers: { Authorization: `Bearer ${access_token}` },
+            }
+          )
+          .then(
+            (response) => response.data.sheets[0].data[0].rowData[0].values
+          );
+
+        return cells.map((c) => ({
+          value: c.effectiveValue?.stringValue ?? "",
+          color: c.effectiveFormat.backgroundColor,
+        }));
+      }
+
+      async function getRowNumber(name) {
+        // get the row number corresponding to the name
+        const sheet = month;
+        const range = `${sheet}!B:B`;
+
+        const names = await axios
+          .get(`${baseSheetsUrl}/values/${range}?majorDimension=COLUMNS`, {
+            headers: {
+              Authorization: `Bearer ${access_token}`,
+            },
+          })
+          .then((response) => response.data.values);
+
+        const nameIndex = names[0].findIndex(
+          (n) => n?.toLowerCase() === name.toLowerCase()
+        );
+
+        return nameIndex === -1 ? null : nameIndex + 1;
+      }
+
+      async function getColumnNumber() {
+        const sheet = month;
+        const range = `${sheet}!2:2`;
+
+        const dates = await axios
+          .get(`${baseSheetsUrl}?ranges=${range}&includeGridData=true`, {
+            headers: {
+              Authorization: `Bearer ${access_token}`,
+            },
+          })
+          .then(
+            (response) => response.data.sheets[0].data[0].rowData[0].values
+          );
+
+        const now = new Date();
+        const index = dates.findIndex(
+          (d) => d?.effectiveValue?.numberValue === now.getDate()
+        );
+
+        return index === -1 ? null : index + 1;
+      }
+
+      /**
+       * Converts a column number to an alphabetical index
+       * @param {number} columnNumber
+       * @returns {string} The aphabetical column index
+       */
+      function columnNumberToIndex(columnNumber) {
+        if (columnNumber <= 0) {
+          return "";
+        }
+        const remainder = (columnNumber - 1) % 26;
+        return (
+          columnNumberToIndex(Math.floor((columnNumber - 1) / 26)) +
+          String.fromCharCode(65 + remainder)
+        );
+      }
+    </script>
+    <h1>Bob</h1>
+    <button onclick="getToken();">Login</button><br /><br />
+    <button onclick="renderSchedule();">Fetch schedule</button><br /><br />
+    <button onclick="revokeToken();">Logout</button>
+    <table>
+      <tr>
+        <td>AM -</td>
+        <td id="am-text"></td>
+        <td id="am-color" style="width: 40px"></td>
+      </tr>
+      <tr>
+        <td>PM -</td>
+        <td id="pm-text"></td>
+        <td id="pm-color" style="width: 40px"></td>
+      </tr>
+    </table>
+  </body>
+</html>
