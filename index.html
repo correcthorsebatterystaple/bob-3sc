@@ -67,7 +67,7 @@
         document.getElementById("fetch-btn").disabled = true;
         document.getElementById("error").innerText = "";
 
-        renderInfo("Fetching schedule...");
+        renderInfo("Fetching schedule... (0/3)");
 
         const schedule = await getScheduledEntry(name)
           .catch((e) => {
@@ -77,6 +77,8 @@
           .finally(() => {
             document.getElementById("fetch-btn").disabled = false;
           });
+
+        renderInfo("Fetching schedule... (3/3)");
 
         const { am, pm } = schedule;
 
@@ -121,8 +123,12 @@
           getKeys(),
         ]);
 
+        renderInfo("Fetching schedule... (1/3)");
+
         const [cellAM, cellPM] = await getCell(rowNumber, columnNumber);
         const isHoliday = (cell) => Object.keys(cell.color).length === 0;
+
+        renderInfo("Fetching schedule... (2/3)");
 
         let scheduleAM = keys.find(
           (k) =>
