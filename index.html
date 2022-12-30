@@ -29,6 +29,9 @@
           scope: "https://www.googleapis.com/auth/spreadsheets.readonly",
           callback: (tokenResponse) => {
             access_token = tokenResponse.access_token;
+            document.getElementById("login-btn").disabled = true;
+            document.getElementById("fetch-btn").disabled = false;
+            document.getElementById("logout-btn").disabled = false;
           },
         });
       }
@@ -39,6 +42,9 @@
         google.accounts.oauth2.revoke(access_token, () => {
           console.log("access token revoked");
           access_token = null;
+          document.getElementById("login-btn").disabled = false;
+          document.getElementById("fetch-btn").disabled = true;
+          document.getElementById("logout-btn").disabled = true;
         });
       }
 
@@ -49,38 +55,63 @@
         .toUpperCase();
 
       async function renderSchedule() {
+        const name = document.getElementById("name-input").value;
+        if (!name) {
+          alert("no name");
+          return;
+        }
+
         const amTextDisplay = document.getElementById("am-text");
         const amColorDisplay = document.getElementById("am-color");
 
         const pmTextDisplay = document.getElementById("pm-text");
         const pmColorDisplay = document.getElementById("pm-color");
 
-        const { am, pm } = await getScheduledEntry();
+        amTextDisplay.innerText = "Fetching Schedule...";
+        pmTextDisplay.innerText = "Fetching Schedule...";
+
+        document.getElementById("fetch-btn").disabled = true;
+
+        const schedule = await getScheduledEntry(name).catch((e) => {
+          console.error(e);
+          amTextDisplay.innerText = "Something went wrong...";
+          pmTextDisplay.innerText = "Check console for error";
+        });
+
+        const { am, pm } = schedule;
+
+        document.getElementById("fetch-btn").disabled = false;
 
         amTextDisplay.innerText = am.key;
-        amColorDisplay.style.backgroundColor = `rgb(${
-          am.value.color.red * 255
-        }, ${am.value.color.green * 255}, ${am.value.color.blue * 255})`;
+        const amColor = {
+          red: (am.value.color.red ?? 0) * 255,
+          green: (am.value.color.green ?? 0) * 255,
+          blue: (am.value.color.blue ?? 0) * 255,
+        };
+        amColorDisplay.style.backgroundColor = `rgb(${amColor.red}, ${amColor.green}, ${amColor.blue})`;
+        amColorDisplay.innerText = am.value.value;
 
         pmTextDisplay.innerText = pm.key;
-        pmColorDisplay.style.backgroundColor = `rgb(${
-          pm.value.color.red * 255
-        }, ${pm.value.color.green * 255}, ${pm.value.color.blue * 255})`;
+        const pmColor = {
+          red: (pm.value.color.red ?? 0) * 255,
+          green: (pm.value.color.green ?? 0) * 255,
+          blue: (pm.value.color.blue ?? 0) * 255,
+        };
+        pmColorDisplay.style.backgroundColor = `rgb(${pmColor.red}, ${pmColor.green}, ${pmColor.blue})`;
+        pmColorDisplay.innerText = pm.value.value;
       }
 
-      async function getScheduledEntry() {
+      async function getScheduledEntry(name) {
         if (!access_token) {
           alert("no access token");
           return;
         }
 
         const [rowNumber, columnNumber, keys] = await Promise.all([
-          getRowNumber("salim"),
+          getRowNumber(name),
           getColumnNumber(),
           getKeys(),
         ]);
-
-        console.log(keys);
 
         const [cellAM, cellPM] = await getCell(rowNumber, columnNumber);
         const isHoliday = (cell) => Object.keys(cell.color).length === 0;
@@ -156,8 +187,7 @@
         const colLetterAM = columnNumberToIndex(col);
         const colLetterPM = columnNumberToIndex(col + 1);
 
-        // const range = `${month}!${colLetterAM}${row}:${colLetterPM}${row}`;
-        const range = `${month}!AG${row}:AH${row}`;
+        const range = `${month}!${colLetterAM}${row}:${colLetterPM}${row}`;
         const cells = await axios
           .get(
             `${baseSheetsUrl}?ranges=${range}&fields=sheets.data.rowData.values(effectiveFormat,effectiveValue)`,
@@ -233,21 +263,46 @@
         );
       }
     </script>
-    <h1>Bob</h1>
-    <button onclick="getToken();">Login</button><br /><br />
-    <button onclick="renderSchedule();">Fetch schedule</button><br /><br />
-    <button onclick="revokeToken();">Logout</button>
-    <table>
-      <tr>
-        <td>AM -</td>
-        <td id="am-text"></td>
-        <td id="am-color" style="width: 40px"></td>
-      </tr>
-      <tr>
-        <td>PM -</td>
-        <td id="pm-text"></td>
-        <td id="pm-color" style="width: 40px"></td>
-      </tr>
-    </table>
+    <div
+      style="
+        max-width: 768px;
+        padding: 2rem;
+        margin: auto;
+        display: flex;
+        flex-direction: column;
+      "
+    >
+      <input
+        id="name-input"
+        style="
+          text-align: center;
+          font-size: xx-large;
+          margin: 10px auto;
+          max-width: 350px;
+        "
+        placeholder="Enter your name"
+      />
+      <div style="display: flex; justify-content: space-around">
+        <button onclick="getToken();" id="login-btn">Login</button><br /><br />
+        <button onclick="renderSchedule();" disabled id="fetch-btn">
+          Fetch schedule</button
+        ><br /><br />
+        <button onclick="revokeToken();" disabled id="logout-btn">
+          Logout
+        </button>
+      </div>
+      <table style="margin: 20px auto">
+        <tr>
+          <td>AM -</td>
+          <td id="am-text"></td>
+          <td id="am-color" style="width: 40px; text-align: center"></td>
+        </tr>
+        <tr>
+          <td>PM -</td>
+          <td id="pm-text"></td>
+          <td id="pm-color" style="width: 40px; text-align: center"></td>
+        </tr>
+      </table>
+    </div>
   </body>
 </html>
