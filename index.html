@@ -1,6 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bob</title>
     <script
       src="https://accounts.google.com/gsi/client"
       onload="initClient()"
@@ -60,27 +64,29 @@
           alert("no name");
           return;
         }
+        document.getElementById("fetch-btn").disabled = true;
+        document.getElementById("error").innerText = "";
+
+        renderInfo("Fetching schedule...");
+
+        const schedule = await getScheduledEntry(name)
+          .catch((e) => {
+            console.error(e);
+            document.getElementById("error").innerText = e.message;
+          })
+          .finally(() => {
+            document.getElementById("fetch-btn").disabled = false;
+          });
+
+        const { am, pm } = schedule;
+
+        document.getElementById("fetch-btn").disabled = false;
 
         const amTextDisplay = document.getElementById("am-text");
         const amColorDisplay = document.getElementById("am-color");
 
         const pmTextDisplay = document.getElementById("pm-text");
         const pmColorDisplay = document.getElementById("pm-color");
-
-        amTextDisplay.innerText = "Fetching Schedule...";
-        pmTextDisplay.innerText = "Fetching Schedule...";
-
-        document.getElementById("fetch-btn").disabled = true;
-
-        const schedule = await getScheduledEntry(name).catch((e) => {
-          console.error(e);
-          amTextDisplay.innerText = "Something went wrong...";
-          pmTextDisplay.innerText = "Check console for error";
-        });
-
-        const { am, pm } = schedule;
-
-        document.getElementById("fetch-btn").disabled = false;
 
         amTextDisplay.innerText = am.key;
         const amColor = {
@@ -99,6 +105,8 @@
         };
         pmColorDisplay.style.backgroundColor = `rgb(${pmColor.red}, ${pmColor.green}, ${pmColor.blue})`;
         pmColorDisplay.innerText = pm.value.value;
+
+        renderInfo(`Schedule for ${name} on ${new Date().toDateString()}`);
       }
 
       async function getScheduledEntry(name) {
@@ -262,6 +270,10 @@
           String.fromCharCode(65 + remainder)
         );
       }
+
+      function renderInfo(message) {
+        document.getElementById("info").innerText = message;
+      }
     </script>
     <div
       style="
@@ -277,7 +289,7 @@
         style="
           text-align: center;
           font-size: xx-large;
-          margin: 10px auto;
+          margin: 30px auto;
           max-width: 350px;
         "
         placeholder="Enter your name"
@@ -291,6 +303,8 @@
           Logout
         </button>
       </div>
+      <div id="error" style="color: red; text-align: center"></div>
+      <div id="info" style="text-align: center"></div>
       <table style="margin: 20px auto">
         <tr>
           <td>AM -</td>
