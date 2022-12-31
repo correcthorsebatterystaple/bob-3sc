@@ -19,6 +19,14 @@ async function fetchProjects(name) {
   return { am: am ?? naProject, pm: pm ?? naProject };
 }
 
+/**
+ * Disables the fetch button
+ * @param {boolean} disable - whether to disable the button, true by default
+ */
+function disableFetchButton(disable = true) {
+  document.getElementById("fetch-btn").disabled = disable;
+}
+
 async function renderSchedule() {
   const name = document.getElementById("name-input").value;
   if (!name) {
@@ -26,7 +34,7 @@ async function renderSchedule() {
     return;
   }
 
-  document.getElementById("fetch-btn").disabled = true;
+  disableFetchButton();
 
   renderError("");
   renderInfo("Fetching schedule... (0/3)");
@@ -39,12 +47,10 @@ async function renderSchedule() {
     renderError(e.message ?? "Something went wrong");
     return;
   } finally {
-    document.getElementById("fetch-btn").disabled = false;
+    disableFetchButton(false);
   }
 
   renderInfo("Fetching schedule... (3/3)");
-
-  document.getElementById("fetch-btn").disabled = false;
 
   const amTextDisplay = document.getElementById("am-text");
   const amColorDisplay = document.getElementById("am-color");
