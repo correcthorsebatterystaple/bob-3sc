@@ -1,8 +1,23 @@
-const spreadsheetId = "1-l37wl_YlE6AsL_ao4nHxs1ooIxpuRUwwIjfzWl82m4";
-const baseSheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
-
-let today = new Date();
+let today = new Date("2022-12-7");
 const month = today.toLocaleString("default", { month: "short" }).toUpperCase();
+
+async function fetchProjects(name) {
+  const isWeekend = today.getDay() === 0 || today.getDay() === 6;
+  const white = { red: 1, green: 1, blue: 1 };
+
+  const naProject = { key: "N/A", value: { value: "N/A", color: white } };
+  const weekendProject = {
+    key: "Weekend",
+    value: { value: "🥳", color: {} },
+  };
+
+  if (isWeekend) {
+    return { am: weekendProject, pm: weekendProject };
+  }
+
+  const { am, pm } = await getScheduledEntry(name);
+  return { am: am ?? naProject, pm: pm ?? naProject };
+}
 
 async function renderSchedule() {
   const name = document.getElementById("name-input").value;
@@ -10,33 +25,24 @@ async function renderSchedule() {
     renderError("Please enter your name");
     return;
   }
-  document.getElementById("fetch-btn").disabled = true;
-  renderError("");
 
+  document.getElementById("fetch-btn").disabled = true;
+
+  renderError("");
   renderInfo("Fetching schedule... (0/3)");
 
-  const isWeekend = today.getDay() === 0 || today.getDay() === 6;
-  const white = { red: 1, green: 1, blue: 1 };
+  let amProject, pmProject;
+  try {
+    ({ am: amProject, pm: pmProject } = await fetchProjects(name));
+  } catch (e) {
+    console.error(e);
+    renderError(e.message ?? "Something went wrong");
+    return;
+  } finally {
+    document.getElementById("fetch-btn").disabled = false;
+  }
 
-  const schedule = isWeekend
-    ? {
-        am: { key: "Weekend", value: { value: "🥳", color: white } },
-        pm: { key: "Weekend", value: { value: "🥳", color: white } },
-      }
-    : await getScheduledEntry(name)
-        .catch((e) => {
-          console.error(e);
-          renderError(e.message || "Something went wrong");
-        })
-        .finally(() => {
-          document.getElementById("fetch-btn").disabled = false;
-        });
   renderInfo("Fetching schedule... (3/3)");
-
-  let { am, pm } = schedule ?? {
-    am: { key: "N/A", value: { value: "N/A", color: white } },
-    pm: { key: "N/A", value: { value: "N/A", color: white } },
-  };
 
   document.getElementById("fetch-btn").disabled = false;
 
@@ -46,31 +52,40 @@ async function renderSchedule() {
   const pmTextDisplay = document.getElementById("pm-text");
   const pmColorDisplay = document.getElementById("pm-color");
 
-  amTextDisplay.innerText = am.key;
-  const amColor = {
-    red: (am.value.color.red ?? 0) * 255,
-    green: (am.value.color.green ?? 0) * 255,
-    blue: (am.value.color.blue ?? 0) * 255,
-  };
-  amColorDisplay.style.backgroundColor = `rgb(${amColor.red}, ${amColor.green}, ${amColor.blue})`;
-  amColorDisplay.innerText = am.value.value;
-
-  pmTextDisplay.innerText = pm.key;
-  const pmColor = {
-    red: (pm.value.color.red ?? 0) * 255,
-    green: (pm.value.color.green ?? 0) * 255,
-    blue: (pm.value.color.blue ?? 0) * 255,
-  };
-  pmColorDisplay.style.backgroundColor = `rgb(${pmColor.red}, ${pmColor.green}, ${pmColor.blue})`;
-  pmColorDisplay.innerText = pm.value.value;
+  renderProject(amProject, amTextDisplay, amColorDisplay);
+  renderProject(pmProject, pmTextDisplay, pmColorDisplay);
 
   renderInfo(`Schedule for ${name} on ${today.toDateString()}`);
 }
 
+/**
+ * Renders the project on the page
+ * @param {{key: string, value: {value: string, color: any}}} project - project object
+ * @param {HTMLDivElement} textElem - element to render the project name
+ * @param {HTMLDivElement} colorElem - element to render the project color
+ */
+function renderProject(project, textElem, colorElem) {
+  const { key } = project;
+  textElem.innerText = key;
+
+  const { value, color } = project.value;
+  const cssColor = {
+    red: (color.red ?? 0) * 255,
+    green: (color.green ?? 0) * 255,
+    blue: (color.blue ?? 0) * 255,
+  };
+  colorElem.innerText = value;
+  colorElem.style.backgroundColor = `rgb(${cssColor.red}, ${cssColor.green}, ${cssColor.blue})`;
+}
+
+/**
+ * Fetch the project that the person is scheduled for, for both AM and PM
+ * @param {string} name - name of the person
+ * @returns {Promise<{am: {key: string, value: {value: string, color: any}}, pm: {key: string, value: {value: string, color: any}}}>} - object containing the AM and PM projects
+ */
 async function getScheduledEntry(name) {
   if (!access_token) {
-    alert("no access token");
-    return;
+    throw new Error("No access token");
   }
 
   const [rowNumber, columnNumber, keys] = await Promise.all([
@@ -80,6 +95,10 @@ async function getScheduledEntry(name) {
   ]);
 
   renderInfo("Fetching schedule... (1/3)");
+
+  if (columnNumber === -1 || rowNumber === -1) {
+    return { am: undefined, pm: undefined };
+  }
 
   const [cellAM, cellPM] = await getCell(rowNumber, columnNumber);
   const isHoliday = (cell) => Object.keys(cell.color).length === 0;
@@ -115,8 +134,9 @@ async function getScheduledEntry(name) {
 }
 
 /**
- * @param {string} name
- * @returns {Promise<{key: string; value: {value: string, color: any}}[]>}
+ * Fetches the keys from the key sheet
+ * @param {string} name - name of the person
+ * @returns {Promise<{key: string; value: {value: string, color: any}}[]>} - array of keys
  */
 async function getKeys() {
   const ranges = [`KEY!A2:B31`, "KEY!A34:B48", "KEY!D2:E9"];
@@ -173,8 +193,12 @@ async function getCell(row, col) {
   }));
 }
 
+/**
+ * Fetches the row index corresponding to the person's name
+ * @param {string} name Name of the person
+ * @returns {Promise<number>} The row number corresponding to the person's name or -1 if not found
+ */
 async function getRowNumber(name) {
-  // get the row number corresponding to the name
   const sheet = month;
   const range = `${sheet}!B:B`;
 
@@ -191,6 +215,10 @@ async function getRowNumber(name) {
   return nameIndex === -1 ? null : nameIndex + 1;
 }
 
+/**
+ * Fetches the column index corresponding to today's date
+ * @returns {Promise<number>} The column number corresponding to today's date or -1 if not found
+ */
 async function getColumnNumber() {
   const sheet = month;
   const range = `${sheet}!2:2`;
@@ -235,6 +263,9 @@ function renderError(message) {
 }
 
 async function googleSheetGET({ endpoint, query }) {
+  const spreadsheetId = "1-l37wl_YlE6AsL_ao4nHxs1ooIxpuRUwwIjfzWl82m4";
+  const baseSheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
+
   const queryParams = new URLSearchParams(query);
   const url = `${baseSheetsUrl}/${endpoint ?? ""}?${queryParams.toString()}`;
 
