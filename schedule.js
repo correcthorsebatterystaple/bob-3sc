@@ -1,7 +1,7 @@
-const spreadsheetId = "1ATMcPmXNQlVXdOQv95kJHbQn1dJJMszF7Y71sLpqGgA";
+const spreadsheetId = "1-l37wl_YlE6AsL_ao4nHxs1ooIxpuRUwwIjfzWl82m4";
 const baseSheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
 
-const today = new Date();
+let today = new Date();
 const month = today.toLocaleString("default", { month: "short" }).toUpperCase();
 
 async function renderSchedule() {
