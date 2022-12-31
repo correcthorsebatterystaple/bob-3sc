@@ -1,11 +1,11 @@
-let today = new Date("2022-12-7");
+let today = new Date();
 const month = today.toLocaleString("default", { month: "short" }).toUpperCase();
 
 async function fetchProjects(name) {
   const isWeekend = today.getDay() === 0 || today.getDay() === 6;
   const white = { red: 1, green: 1, blue: 1 };
 
-  const naProject = { key: "N/A", value: { value: "N/A", color: white } };
+  const noProject = { key: "Nothing", value: { value: "😴", color: white } };
   const weekendProject = {
     key: "Weekend",
     value: { value: "🥳", color: {} },
@@ -16,7 +16,7 @@ async function fetchProjects(name) {
   }
 
   const { am, pm } = await getScheduledEntry(name);
-  return { am: am ?? naProject, pm: pm ?? naProject };
+  return { am: am ?? noProject, pm: pm ?? noProject };
 }
 
 /**
