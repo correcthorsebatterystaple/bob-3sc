@@ -134,8 +134,8 @@ async function getScheduledEntry(name) {
   }
 
   return {
-    am: scheduleAM,
-    pm: schedulePM,
+    am: scheduleAM ?? { key: "Key not found", value: cellAM },
+    pm: schedulePM ?? { key: "Key not found", value: cellPM },
   };
 }
 
