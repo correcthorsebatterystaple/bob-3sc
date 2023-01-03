@@ -216,10 +216,14 @@ async function getRowNumber(name) {
   const names = data.values;
 
   const nameIndex = names[0].findIndex(
-    (n) => n?.toLowerCase() === name.toLowerCase()
+    (n) => n?.trim().toLowerCase() === name.trim().toLowerCase()
   );
 
-  return nameIndex === -1 ? null : nameIndex + 1;
+  if (nameIndex === -1) {
+    throw new Error(`Name ${name} not found`);
+  }
+
+  return nameIndex + 1;
 }
 
 /**
@@ -242,7 +246,11 @@ async function getColumnNumber() {
     (d) => d?.effectiveValue?.numberValue === today.getDate()
   );
 
-  return index === -1 ? null : index + 1;
+  if (index === -1) {
+    throw new Error(`Column for date ${today.toLocaleDateString()} not found`);
+  }
+
+  return index + 1;
 }
 
 /**
