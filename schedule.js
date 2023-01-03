@@ -1,5 +1,4 @@
 let today = new Date();
-const month = today.toLocaleString("default", { month: "short" }).toUpperCase();
 
 async function fetchProjects(name) {
   const isWeekend = today.getDay() === 0 || today.getDay() === 6;
@@ -34,6 +33,7 @@ async function renderSchedule() {
     return;
   }
 
+  localStorage.setItem("bob.name", name);
   disableFetchButton();
 
   renderError("");
@@ -184,7 +184,8 @@ async function getCell(row, col) {
   const colLetterAM = columnNumberToIndex(col);
   const colLetterPM = columnNumberToIndex(col + 1);
 
-  const range = `${month}!${colLetterAM}${row}:${colLetterPM}${row}`;
+  const sheet = getSheetName();
+  const range = `${sheet}!${colLetterAM}${row}:${colLetterPM}${row}`;
   const { data } = await googleSheetGET({
     query: {
       ranges: range,
@@ -205,7 +206,7 @@ async function getCell(row, col) {
  * @returns {Promise<number>} The row number corresponding to the person's name or -1 if not found
  */
 async function getRowNumber(name) {
-  const sheet = month;
+  const sheet = getSheetName();
   const range = `${sheet}!B:B`;
 
   const { data } = await googleSheetGET({
@@ -226,7 +227,7 @@ async function getRowNumber(name) {
  * @returns {Promise<number>} The column number corresponding to today's date or -1 if not found
  */
 async function getColumnNumber() {
-  const sheet = month;
+  const sheet = getSheetName();
   const range = `${sheet}!2:2`;
 
   const { data } = await googleSheetGET({
@@ -258,6 +259,13 @@ function columnNumberToIndex(columnNumber) {
     columnNumberToIndex(Math.floor((columnNumber - 1) / 26)) +
     String.fromCharCode(65 + remainder)
   );
+}
+
+function getSheetName() {
+  const now = new Date();
+  const month = now.toLocaleString("default", { month: "short" }).toUpperCase();
+  // TODO: Change this to the current year
+  return `${month} 23`;
 }
 
 function renderInfo(message) {

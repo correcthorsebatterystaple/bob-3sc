@@ -25,8 +25,6 @@
         padding: 10px;
       }
     </style>
-    <script src="google-auth-init.js"></script>
-    <script src="schedule.js"></script>
     <div
       style="
         max-width: 768px;
@@ -71,5 +69,13 @@
         </tr>
       </table>
     </div>
+
+    <script>
+      document.getElementById("name-input").value =
+        localStorage.getItem("bob.name") ?? "";
+    </script>
+
+    <script src="google-auth-init.js"></script>
+    <script src="schedule.js"></script>
   </body>
 </html>
