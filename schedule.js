@@ -1,7 +1,14 @@
-let today = new Date();
+function getDate() {
+  const date = new Date(document.getElementById("date-input").value);
+  if (date < new Date("2023-01-01")) {
+    throw new Error("Date is too early");
+  }
+  return date;
+}
 
 async function fetchProjects(name) {
-  const isWeekend = today.getDay() === 0 || today.getDay() === 6;
+  const date = getDate();
+  const isWeekend = date.getDay() === 0 || date.getDay() === 6;
   const white = { red: 1, green: 1, blue: 1 };
 
   const noProject = { key: "Nothing", value: { value: "😴", color: white } };
@@ -45,6 +52,7 @@ async function renderSchedule() {
   } catch (e) {
     console.error(e);
     renderError(e.message ?? "Something went wrong");
+    renderInfo("");
     return;
   } finally {
     disableFetchButton(false);
@@ -61,7 +69,8 @@ async function renderSchedule() {
   renderProject(amProject, amTextDisplay, amColorDisplay);
   renderProject(pmProject, pmTextDisplay, pmColorDisplay);
 
-  renderInfo(`Schedule for ${name} on ${today.toDateString()}`);
+  const date = getDate();
+  renderInfo(`Schedule for ${name} on ${date.toDateString()}`);
 }
 
 /**
@@ -195,10 +204,18 @@ async function getCell(row, col) {
   const { data } = await googleSheetGET({
     query: {
       ranges: range,
-      fields: "sheets.data.rowData.values(effectiveFormat,effectiveValue)",
+      fields: "sheets.data.rowData",
     },
   });
-  const cells = data.sheets[0].data[0].rowData[0].values;
+  const cells = data.sheets[0].data[0].rowData?.[0].values;
+
+  if (!cells) {
+    const white = { red: 1, green: 1, blue: 1 };
+    return [
+      { value: "", color: white },
+      { value: "", color: white },
+    ];
+  }
 
   return cells.map((c) => ({
     value: c.effectiveValue?.stringValue ?? "",
@@ -233,8 +250,8 @@ async function getRowNumber(name) {
 }
 
 /**
- * Fetches the column index corresponding to today's date
- * @returns {Promise<number>} The column number corresponding to today's date or -1 if not found
+ * Fetches the column index corresponding to date
+ * @returns {Promise<number>} The column number corresponding to date or -1 if not found
  */
 async function getColumnNumber() {
   const sheet = getSheetName();
@@ -248,12 +265,13 @@ async function getColumnNumber() {
   });
   const dates = data.sheets[0].data[0].rowData[0].values;
 
+  const date = getDate();
   const index = dates.findIndex(
-    (d) => d?.effectiveValue?.numberValue === today.getDate()
+    (d) => d?.effectiveValue?.numberValue === date.getDate()
   );
 
   if (index === -1) {
-    throw new Error(`Column for date ${today.toLocaleDateString()} not found`);
+    throw new Error(`Column for date ${date.toLocaleDateString()} not found`);
   }
 
   return index + 1;
@@ -276,8 +294,10 @@ function columnNumberToIndex(columnNumber) {
 }
 
 function getSheetName() {
-  const now = new Date();
-  const month = now.toLocaleString("default", { month: "short" }).toUpperCase();
+  const date = getDate();
+  const month = date
+    .toLocaleString("default", { month: "short" })
+    .toUpperCase();
   // TODO: Change this to the current year
   return `${month} 23`;
 }

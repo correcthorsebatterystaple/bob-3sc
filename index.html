@@ -21,6 +21,9 @@
   </head>
   <body>
     <style>
+      * {
+        box-sizing: border-box;
+      }
       td {
         padding: 10px;
       }
@@ -35,16 +38,21 @@
         gap: 20px;
       "
     >
-      <input
-        id="name-input"
+      <div
         style="
-          text-align: center;
-          font-size: xx-large;
-          margin: auto;
-          max-width: 350px;
+          display: flex;
+          gap: 10px;
+          justify-content: center;
+          flex-wrap: wrap;
         "
-        placeholder="Enter your name"
-      />
+      >
+        <input
+          id="name-input"
+          style="text-align: center; font-size: 1.5rem; flex: 0 1 auto"
+          placeholder="Enter name"
+        />
+        <input type="date" id="date-input" style="flex: 0 0 110px" />
+      </div>
       <div style="display: flex; justify-content: space-around">
         <button onclick="getToken();" id="login-btn">Login</button><br /><br />
         <button onclick="renderSchedule();" disabled id="fetch-btn">
@@ -73,6 +81,10 @@
     <script>
       document.getElementById("name-input").value =
         localStorage.getItem("bob.name") ?? "";
+
+      document.getElementById("date-input").value = new Date()
+        .toISOString()
+        .split("T")[0];
     </script>
 
     <script src="google-auth-init.js"></script>
