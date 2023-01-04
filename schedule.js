@@ -172,7 +172,13 @@ async function getKeys() {
     )
     .flat();
 
-  return keys;
+  return [
+    ...keys,
+    {
+      key: "Not assigned",
+      value: { value: "", color: { red: 1, green: 1, blue: 1 } },
+    },
+  ];
 }
 
 /**
