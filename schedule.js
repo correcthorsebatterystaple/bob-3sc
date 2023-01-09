@@ -172,10 +172,10 @@ async function getKeys() {
   const keys = keysData
     .map((d) =>
       d.rowData.map((rd) => ({
-        key: rd.values[0].effectiveValue.stringValue,
+        key: rd.values[0]?.effectiveValue?.stringValue ?? "",
         value: {
-          value: rd.values[1].effectiveValue?.stringValue ?? "",
-          color: rd.values[1].effectiveFormat?.backgroundColor,
+          value: rd.values[1]?.effectiveValue?.stringValue ?? "",
+          color: rd.values[1]?.effectiveFormat?.backgroundColor ?? {},
         },
       }))
     )
