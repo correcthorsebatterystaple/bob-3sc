@@ -299,7 +299,7 @@ function getSheetName() {
     .toLocaleString("default", { month: "short" })
     .toUpperCase();
   // TODO: Change this to the current year
-  return `${month} 23`;
+  return `${month}`;
 }
 
 function renderInfo(message) {
